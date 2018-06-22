@@ -101,10 +101,7 @@ export class NgbDropdownToggle extends NgbDropdownAnchor {
 @Directive({
   selector: '[ngbDropdown]',
   exportAs: 'ngbDropdown',
-  host: {
-    '[class.show]': 'isOpen()',
-    '(keyup.esc)': 'closeFromOutsideEsc()'
-  }
+  host: {'[class.show]': 'isOpen()', '(keyup.esc)': 'closeFromOutsideEsc()'}
 })
 export class NgbDropdown implements OnInit {
   private _zoneSubscription: any;
