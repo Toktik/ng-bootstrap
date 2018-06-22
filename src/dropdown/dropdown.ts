@@ -103,12 +103,15 @@ export class NgbDropdownToggle extends NgbDropdownAnchor {
   exportAs: 'ngbDropdown',
   host: {
     '[class.show]': 'isOpen()',
-    '(keyup.esc)': 'closeFromOutsideEsc()',
-    '(document:click)': 'closeFromClick($event)'
+    '(keyup.esc)': 'closeFromOutsideEsc()'
   }
 })
 export class NgbDropdown implements OnInit {
   private _zoneSubscription: any;
+  /**
+   * Holds the remove listener method returned by listenGlobal
+   */
+  private _outsideClickListener;
 
   @ContentChild(NgbDropdownMenu) private _menu: NgbDropdownMenu;
 
@@ -142,7 +145,7 @@ export class NgbDropdown implements OnInit {
    */
   @Output() openChange = new EventEmitter();
 
-  constructor(config: NgbDropdownConfig, ngZone: NgZone) {
+  constructor(config: NgbDropdownConfig, ngZone: NgZone, private _renderer: Renderer2) {
     this.placement = config.placement;
     this.autoClose = config.autoClose;
     this._zoneSubscription = ngZone.onStable.subscribe(() => { this._positionMenu(); });
@@ -151,6 +154,9 @@ export class NgbDropdown implements OnInit {
   ngOnInit() {
     if (this._menu) {
       this._menu.applyPlacement(Array.isArray(this.placement) ? (this.placement[0]) : this.placement as Placement);
+    }
+    if (this._open) {
+      this._registerListener();
     }
   }
 
@@ -165,6 +171,7 @@ export class NgbDropdown implements OnInit {
   open(): void {
     if (!this._open) {
       this._open = true;
+      this._registerListener();
       this._positionMenu();
       this.openChange.emit(true);
     }
@@ -176,6 +183,10 @@ export class NgbDropdown implements OnInit {
   close(): void {
     if (this._open) {
       this._open = false;
+
+      // Removes "listenGlobal" listener
+      this._outsideClickListener();
+
       this.openChange.emit(false);
     }
   }
@@ -214,6 +225,10 @@ export class NgbDropdown implements OnInit {
   private _isEventFromToggle($event) { return this._anchor.isEventFrom($event); }
 
   private _isEventFromMenu($event) { return this._menu ? this._menu.isEventFrom($event) : false; }
+
+  private _registerListener() {
+    this._outsideClickListener = this._renderer.listen('document', 'click', (e) => this.closeFromClick(e));
+  }
 
   private _positionMenu() {
     if (this.isOpen() && this._menu) {
