@@ -132,6 +132,8 @@ export class NgbInputDatepicker implements OnChanges,
    */
   @Input() placement: PlacementArray = 'bottom-left';
 
+  @Input() skipRequiredValidations = false;
+
   /**
    * Whether to display days of the week
    */
@@ -221,11 +223,11 @@ export class NgbInputDatepicker implements OnChanges,
       return {'ngbDate': {invalid: c.value}};
     }
 
-    if (this.minDate && ngbDate.before(NgbDate.from(this.minDate))) {
+    if (!this.skipRequiredValidations && this.minDate && ngbDate.before(NgbDate.from(this.minDate))) {
       return {'ngbDate': {requiredBefore: this.minDate}};
     }
 
-    if (this.maxDate && ngbDate.after(NgbDate.from(this.maxDate))) {
+    if (!this.skipRequiredValidations && this.maxDate && ngbDate.after(NgbDate.from(this.maxDate))) {
       return {'ngbDate': {requiredAfter: this.maxDate}};
     }
   }

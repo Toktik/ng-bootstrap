@@ -9,10 +9,11 @@ import {
   ContentChild,
   NgZone,
   Renderer2,
-  OnInit
+  OnInit, SimpleChanges, OnChanges
 } from '@angular/core';
 import {NgbDropdownConfig} from './dropdown-config';
 import {positionElements, PlacementArray, Placement} from '../util/positioning';
+import { DOCUMENT } from '@angular/common';
 
 /**
  */
@@ -103,14 +104,16 @@ export class NgbDropdownToggle extends NgbDropdownAnchor {
   exportAs: 'ngbDropdown',
   host: {'[class.show]': 'isOpen()', '(keyup.esc)': 'closeFromOutsideEsc()'}
 })
-export class NgbDropdown implements OnInit {
+export class NgbDropdown implements OnChanges, OnInit {
   private _zoneSubscription: any;
   /**
    * Holds the remove listener method returned by listenGlobal
    */
   private _outsideClickListener;
+  private _bodyContainer: HTMLElement;
 
   @ContentChild(NgbDropdownMenu) private _menu: NgbDropdownMenu;
+  @ContentChild(NgbDropdownMenu, {read: ElementRef}) private _menuElement: ElementRef;
 
   @ContentChild(NgbDropdownAnchor) private _anchor: NgbDropdownAnchor;
 
@@ -136,24 +139,46 @@ export class NgbDropdown implements OnInit {
    */
   @Input() placement: PlacementArray;
 
+
+  /**
+   * A selector specifying the element the dropdown should be appended to.
+   * Currently only supports "body".
+   */
+  @Input() container: null | 'body';
+
   /**
    *  An event fired when the dropdown is opened or closed.
    *  Event's payload equals whether dropdown is open.
    */
   @Output() openChange = new EventEmitter();
 
-  constructor(config: NgbDropdownConfig, ngZone: NgZone, private _renderer: Renderer2) {
+  constructor(
+    config: NgbDropdownConfig,
+    ngZone: NgZone,
+    @Inject(DOCUMENT) private _document: any,
+    private _elementRef: ElementRef<HTMLElement>,
+    private _renderer: Renderer2
+  ) {
     this.placement = config.placement;
+    this.container = config.container;
     this.autoClose = config.autoClose;
     this._zoneSubscription = ngZone.onStable.subscribe(() => { this._positionMenu(); });
   }
 
   ngOnInit() {
-    if (this._menu) {
-      this._menu.applyPlacement(Array.isArray(this.placement) ? (this.placement[0]) : this.placement as Placement);
-    }
+    this._applyPlacementClasses();
     if (this._open) {
       this._registerListener();
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes.container && this._open) {
+      this._applyContainer(this.container);
+    }
+
+    if (changes.placement && !changes.placement.isFirstChange) {
+      this._applyPlacementClasses();
     }
   }
 
@@ -168,6 +193,7 @@ export class NgbDropdown implements OnInit {
   open(): void {
     if (!this._open) {
       this._open = true;
+      this._applyContainer(this.container);
       this._registerListener();
       this._positionMenu();
       this.openChange.emit(true);
@@ -180,6 +206,7 @@ export class NgbDropdown implements OnInit {
   close(): void {
     if (this._open) {
       this._open = false;
+      this._resetContainer();
 
       // Removes "listenGlobal" listener
       this._outsideClickListener();
@@ -217,7 +244,10 @@ export class NgbDropdown implements OnInit {
     }
   }
 
-  ngOnDestroy() { this._zoneSubscription.unsubscribe(); }
+  ngOnDestroy() {
+    this._resetContainer();
+    this._zoneSubscription.unsubscribe();
+  }
 
   private _isEventFromToggle($event) { return this._anchor.isEventFrom($event); }
 
@@ -229,7 +259,73 @@ export class NgbDropdown implements OnInit {
 
   private _positionMenu() {
     if (this.isOpen() && this._menu) {
-      this._menu.position(this._anchor.anchorEl, this.placement);
+      this._applyPlacementClasses(
+        positionElements(
+          this._anchor.anchorEl, this._bodyContainer || this._menuElement.nativeElement, this.placement,
+          this.container === 'body'));
+    }
+  }
+
+  private _resetContainer() {
+    const renderer = this._renderer;
+    if (this._menuElement) {
+      const dropdownElement = this._elementRef.nativeElement;
+      const dropdownMenuElement = this._menuElement.nativeElement;
+
+      renderer.appendChild(dropdownElement, dropdownMenuElement);
+      renderer.removeStyle(dropdownMenuElement, 'position');
+      renderer.removeStyle(dropdownMenuElement, 'transform');
+    }
+    if (this._bodyContainer) {
+      renderer.removeChild(this._document.body, this._bodyContainer);
+      this._bodyContainer = null;
+    }
+  }
+
+  private _applyContainer(container: null | 'body' = null) {
+    this._resetContainer();
+    if (container === 'body') {
+      const renderer = this._renderer;
+      const dropdownMenuElement = this._menuElement.nativeElement;
+      const bodyContainer = this._bodyContainer = this._bodyContainer || renderer.createElement('div');
+
+      // Override some styles to have the positionning working
+      renderer.setStyle(bodyContainer, 'position', 'absolute');
+      renderer.setStyle(dropdownMenuElement, 'position', 'static');
+
+      renderer.appendChild(bodyContainer, dropdownMenuElement);
+      renderer.appendChild(this._document.body, bodyContainer);
+    }
+  }
+
+  private _applyPlacementClasses(placement?: Placement) {
+    if (this._menu) {
+      if (!placement) {
+        placement = Array.isArray(this.placement) ? this.placement[0] : this.placement as Placement;
+      }
+
+      const renderer = this._renderer;
+      const dropdownElement = this._elementRef.nativeElement;
+
+      // remove the current placement classes
+      renderer.removeClass(dropdownElement, 'dropup');
+      renderer.removeClass(dropdownElement, 'dropdown');
+      this.placement = placement;
+      this._menu.placement = placement;
+
+      /*
+     * apply the new placement
+     * in case of top use up-arrow or down-arrow otherwise
+     */
+      const dropdownClass = placement.search('^top') !== -1 ? 'dropup' : 'dropdown';
+      renderer.addClass(dropdownElement, dropdownClass);
+
+      const bodyContainer = this._bodyContainer;
+      if (bodyContainer) {
+        renderer.removeClass(bodyContainer, 'dropup');
+        renderer.removeClass(bodyContainer, 'dropdown');
+        renderer.addClass(bodyContainer, dropdownClass);
+      }
     }
   }
 }
