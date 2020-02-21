@@ -22,7 +22,7 @@ import {ngbFocusTrap} from '../util/focus-trap';
     'role': 'dialog',
     'tabindex': '-1',
     '(keyup.esc)': 'escKey($event)',
-    '(click)': 'backdropClick($event)'
+    '(mousedown)': 'backdropClick($event)'
   },
   template: `
     <div [class]="'modal-dialog' + (size ? ' modal-' + size : '') + (centered ? ' modal-dialog-centered' : '')" role="document">

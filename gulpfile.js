@@ -294,7 +294,7 @@ gulp.task('demo-push', function() {
 gulp.task('clean', ['clean:build', 'clean:tests', 'clean:demo', 'clean:demo-cache']);
 
 gulp.task('build', function(done) {
-  runSequence('lint', 'enforce-format', 'ddescribe-iit', 'test', 'clean:build', 'ngc', 'umd', 'npm', done);
+  runSequence('ddescribe-iit', 'test', 'clean:build', 'ngc', 'umd', 'npm', done);
 });
 
 gulp.task(
