@@ -49,7 +49,8 @@ export class NgbModalWindow implements OnInit,
   }
 
   backdropClick($event): void {
-    if (this.backdrop === true && this._elRef.nativeElement === $event.target) {
+    const clickedOnScrollBar = $event.offsetX > $event.target.clientWidth || $event.offsetY > $event.target.clientHeight;
+    if (this.backdrop === true && this._elRef.nativeElement === $event.target && !clickedOnScrollBar) {
       this.dismiss(ModalDismissReasons.BACKDROP_CLICK);
     }
   }
